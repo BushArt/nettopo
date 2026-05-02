@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# nettopo data (do not commit scan results or cached CVEs)
+data/nvd_cache/
+data/sessions/
+data/scan_log.jsonl
+
+# Secrets and local config overrides
+.env
+config.local.yaml
+
+# Packet captures
+*.pcap
+*.pcapng
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/

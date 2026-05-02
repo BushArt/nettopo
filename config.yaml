@@ -1,0 +1,26 @@
+# NetTopo Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Copy this file to config.local.yaml for local overrides (not committed).
+# All keys must be present. Leave optional keys as empty strings.
+
+scanner:
+  default_subnet: "172.20.0.0/24"   # Default target for `make scan`
+  default_profile: "quick"           # Default scan profile name
+  nmap_binary: "/usr/bin/nmap"       # Full path to nmap binary
+  output_dir: "data/sessions/"       # Directory for JSON output files
+
+legal:
+  # REQUIRED: Document your authorisation before scanning anything.
+  # This field is logged with every scan session. Leave empty = scanner refuses to run.
+  permission_statement: ""           # e.g. "Authorised lab environment — TryHackMe room XYZ, 2026-05-01"
+  allowed_subnets:                   # Whitelist of permitted target CIDR ranges (RFC1918 only by default)
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+
+enrichment:
+  nvd_api_key: ""                    # Optional in Phase 1. Get one free at nvd.nist.gov
+
+server:
+  ws_port: 8765                      # WebSocket port — unused until Phase 2
+  http_port: 8080                    # HTTP server port
