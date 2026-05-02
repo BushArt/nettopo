@@ -1,11 +1,5 @@
 # NetTopo — Live Network Topology Visualizer
 
-> MOLi — Makers' Open Lab for Innovation · National Chi Nan University · Puli, Nantou, Taiwan
->
-> *We Make, We Hack, We Share*
-
-NetTopo scans a subnet with nmap, parses the results in real time, and renders an interactive force-directed graph in the browser. Each node shows OS family, open ports, service banners, and (in Phase 3) CVE risk scores from the National Vulnerability Database.
-
 **Current status: Phase 1 — Foundation** (Scanner + Parser + Static Rendering)
 
 ---
