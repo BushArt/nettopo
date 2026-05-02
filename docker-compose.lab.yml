@@ -1,37 +1,38 @@
 # NetTopo — Local Vulnerable Lab
-# Provides three deliberately vulnerable targets on a predictable subnet.
 # Usage: make lab   (or: docker compose -f docker-compose.lab.yml up -d)
-# ─────────────────────────────────────────────────────────────────────────────
 # WARNING: These containers are intentionally insecure.
-# Run only on an isolated host-only or bridged network. Never expose to internet.
-
-version: '3.8'
+# Run only on an isolated network. Never expose to internet.
 
 services:
   metasploitable:
-    image: tleemcjr/metasploitable2
+    image: docker.io/tleemcjr/metasploitable2
     networks:
       labnet:
         ipv4_address: 172.20.0.10
 
   dvwa:
-    image: vulnerables/web-dvwa
+    image: docker.io/vulnerables/web-dvwa
     networks:
       labnet:
         ipv4_address: 172.20.0.11
 
-  webgoat:
-    image: webgoat/goat-and-wolf
+  ssh-target:
+    image: docker.io/linuxserver/openssh-server:latest
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - PASSWORD_ACCESS=true
+      - USER_PASSWORD=password
+      - USER_NAME=labuser
     networks:
       labnet:
         ipv4_address: 172.20.0.12
 
-  nettopo:
-    build: .
-    ports:
-      - '8080:8080'
-      - '8765:8765'
-    network_mode: host   # needed to reach labnet from scanner
+  probe:
+    image: docker.io/nginx:alpine
+    networks:
+      labnet:
+        ipv4_address: 172.20.0.13
 
 networks:
   labnet:

@@ -16,6 +16,9 @@ test:
 	pytest tests/ -v --tb=short
 
 serve:
+	@echo ""
+	@echo "  Open: http://localhost:8080/frontend/index.html"
+	@echo ""
 	python -m http.server 8080 --directory .
 
 clean:
