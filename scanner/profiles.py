@@ -6,7 +6,6 @@ Adding a new profile never requires touching runner.py.
 """
 
 import pathlib
-import yaml
 
 # Profile ID → nmap argument string
 # These are the canonical Phase 1 profiles. Do not add profiles here that

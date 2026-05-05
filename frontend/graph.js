@@ -10,7 +10,7 @@
 (function () {
   "use strict";
 
-  const DATA_URL = "data/sessions/latest.json";
+  const DATA_URL = "../data/sessions/latest.json";
   const NODE_RADIUS = 20;          // Phase 2: becomes 12 + (3 * open_port_count), max 40
   const NODE_FILL   = "#4A90D9";   // Phase 2: becomes OS-family color mapping
   const NODE_STROKE = "#ffffff";   // Phase 2: becomes risk-level color

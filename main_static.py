@@ -126,7 +126,7 @@ def main() -> None:
 
     console.print(table)
     console.print(f"\n[dim]Output:[/dim] {output_path.resolve()}")
-    console.print(f"[dim]Run [bold]make serve[/bold] then open http://localhost:8080 to view graph.[/dim]")
+    console.print(f"[dim]Run [bold]make serve[/bold] then open http://localhost:8080/frontend/index.html to view graph.[/dim]")
 
 
 if __name__ == "__main__":

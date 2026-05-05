@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.99 scan initiated Tue May  5 01:11:15 2026 as: /usr/lib/nmap/nmap -&#45;privileged -sT -sV -T4 -p- -oX tests/fixtures/sample_nmap_single.xml 172.20.0.10 -->
+<nmaprun scanner="nmap" args="/usr/lib/nmap/nmap -&#45;privileged -sT -sV -T4 -p- -oX tests/fixtures/sample_nmap_single.xml 172.20.0.10" start="1777914675" startstr="Tue May  5 01:11:15 2026" version="7.99" xmloutputversion="1.05">
+<scaninfo type="connect" protocol="tcp" numservices="65535" services="1-65535"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<hosthint><status state="up" reason="unknown-response" reason_ttl="0"/>
+<address addr="172.20.0.10" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+</hosthint>
+<taskprogress task="Connect Scan" time="1777915065" percent="26.05" remaining="1105" etc="1777916169"/>
+<taskprogress task="Connect Scan" time="1777915212" percent="35.42" remaining="978" etc="1777916189"/>
+<taskprogress task="Connect Scan" time="1777915402" percent="26.23" remaining="2042" etc="1777917443"/>
+<taskprogress task="Connect Scan" time="1777915839" percent="27.55" remaining="3059" etc="1777918897"/>
+<taskprogress task="Connect Scan" time="1777916090" percent="28.34" remaining="3575" etc="1777919665"/>
+<taskprogress task="Connect Scan" time="1777916169" percent="28.56" remaining="3734" etc="1777919903"/>
+<taskprogress task="Connect Scan" time="1777916204" percent="28.68" remaining="3800" etc="1777920004"/>
+<taskprogress task="Connect Scan" time="1777916205" percent="28.68" remaining="3802" etc="1777920007"/>
+<taskprogress task="Connect Scan" time="1777916675" percent="30.22" remaining="4617" etc="1777921291"/>
+<taskprogress task="Connect Scan" time="1777917532" percent="32.73" remaining="5872" etc="1777923403"/>
+<taskprogress task="Connect Scan" time="1777917926" percent="33.84" remaining="6353" etc="1777924279"/>
+<taskprogress task="Connect Scan" time="1777943868" percent="30.31" remaining="67118" etc="1778010985"/>
+<taskprogress task="Connect Scan" time="1777943871" percent="30.75" remaining="65757" etc="1778009628"/>
+<host starttime="1777914676" endtime="1777944477"><status state="up" reason="reset" reason_ttl="255"/>
+<address addr="172.20.0.10" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+<ports><extraports state="closed" count="65534">
+<extrareasons reason="conn-refused" count="65534" proto="tcp" ports="1-5059,5061-65535"/>
+</extraports>
+<port protocol="tcp" portid="5060"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="tcpwrapped" method="probed" conf="8"/></port>
+</ports>
+<times srtt="6969" rttvar="5068" to="100000"/>
+</host>
+<runstats><finished time="1777944477" timestr="Tue May  5 09:27:57 2026" summary="Nmap done at Tue May  5 09:27:57 2026; 1 IP address (1 host up) scanned in 29801.80 seconds" elapsed="29801.80" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>
