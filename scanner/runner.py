@@ -10,7 +10,7 @@ import json
 import logging
 import pathlib
 import subprocess
-import time
+import asyncio
 import uuid
 from datetime import datetime, timezone
 
@@ -127,6 +127,119 @@ def run_scan(subnet: str, profile: str = "quick", config: dict | None = None) ->
     )
 
     return result.stdout
+
+
+async def run_scan_async(subnet: str, profile: str = "quick", config: dict | None = None):
+    """
+    Async streaming nmap runner. Async generator that yields each line of stdout
+    as it arrives without blocking the event loop.
+
+    Applies identical guardrails and logging as run_scan().
+
+    Args:
+        subnet:  Target CIDR range
+        profile: Named scan profile
+        config:  Parsed config.yaml dict
+
+    Yields:
+        UTF-8 decoded line strings from nmap stdout
+
+    Raises:
+        Same exceptions as run_scan()
+    """
+    config = config or {}
+
+    # ── Identical guardrails as synchronous version ───────────────────────────
+    stmt = config.get("legal", {}).get("permission_statement", "")
+    if not stmt or not stmt.strip():
+        raise PermissionStatementMissingError(
+            "config.legal.permission_statement is empty. "
+            "Document your authorisation before scanning. See README.md#legal."
+        )
+
+    allowed = config.get("legal", {}).get(
+        "allowed_subnets",
+        ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+    )
+    if not validate_subnet(subnet, allowed):
+        raise SubnetNotAllowedError(
+            f"Target subnet '{subnet}' is not in the allowed list: {allowed}. "
+            "Only RFC1918 private ranges are permitted by default. "
+            "See README.md#legal for more information."
+        )
+
+    profile_args = get_profile_args(profile, config)
+    args = build_nmap_args(profile_args, subnet, config)
+
+    # ── Async subprocess execution ────────────────────────────────────────────
+    scan_id = str(uuid.uuid4())
+    started_at = datetime.now(timezone.utc)
+    log.info(f"[scan:{scan_id}] Starting (async) — subnet={subnet} profile={profile}")
+    log.info(f"[scan:{scan_id}] Command: {' '.join(args)}")
+
+    host_count = 0
+    process = None
+
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        # Stream stdout line by line
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+            decoded_line = line.decode('utf-8', errors='replace').rstrip('\n')
+            if '<host ' in decoded_line:
+                host_count += 1
+            yield decoded_line
+
+        # Wait for process exit
+        returncode = await asyncio.wait_for(process.wait(), timeout=5)
+
+        if returncode != 0:
+            stderr = await process.stderr.read()
+            raise NmapExecutionError(
+                f"nmap exited with code {returncode}.\n"
+                f"stderr: {stderr.decode('utf-8', errors='replace').strip()}"
+            )
+
+    except asyncio.TimeoutError:
+        if process:
+            try:
+                process.kill()
+                await process.wait()
+            except ProcessLookupError:
+                pass
+        raise NmapExecutionError(
+            f"nmap timed out after 300 seconds scanning '{subnet}'. "
+            "Try a faster profile (e.g. 'quick') or a smaller subnet."
+        )
+
+    finally:
+        if process and process.returncode is None:
+            try:
+                process.kill()
+                await process.wait()
+            except ProcessLookupError:
+                pass
+
+    duration = (datetime.now(timezone.utc) - started_at).total_seconds()
+    log.info(f"[scan:{scan_id}] Complete — duration={duration:.1f}s hosts~={host_count}")
+
+    # Write scan log (same as synchronous version)
+    _write_scan_log(
+        scan_id=scan_id,
+        subnet=subnet,
+        profile=profile,
+        permission=stmt,
+        duration_s=round(duration, 2),
+        host_count=host_count,
+        config=config,
+    )
 
 
 def validate_subnet(subnet: str, allowed: list[str]) -> bool:
