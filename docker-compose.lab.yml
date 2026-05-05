@@ -1,20 +1,13 @@
 # NetTopo — Local Vulnerable Lab
-# Usage: make lab   (or: docker compose -f docker-compose.lab.yml up -d)
-# WARNING: These containers are intentionally insecure.
-# Run only on an isolated network. Never expose to internet.
+# Usage: make lab
+# WARNING: Intentionally insecure. Isolated network only.
 
 services:
-  metasploitable:
-    image: docker.io/tleemcjr/metasploitable2
-    networks:
-      labnet:
-        ipv4_address: 172.20.0.10
-
   dvwa:
     image: docker.io/vulnerables/web-dvwa
     networks:
       labnet:
-        ipv4_address: 172.20.0.11
+        ipv4_address: 172.20.0.10
 
   ssh-target:
     image: docker.io/linuxserver/openssh-server:latest
@@ -26,13 +19,13 @@ services:
       - USER_NAME=labuser
     networks:
       labnet:
-        ipv4_address: 172.20.0.12
+        ipv4_address: 172.20.0.11
 
   probe:
     image: docker.io/nginx:alpine
     networks:
       labnet:
-        ipv4_address: 172.20.0.13
+        ipv4_address: 172.20.0.12
 
 networks:
   labnet:
