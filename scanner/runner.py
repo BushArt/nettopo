@@ -83,7 +83,7 @@ def run_scan(subnet: str, profile: str = "quick", config: dict | None = None) ->
 
     # ── Build args (also validates nmap binary) ───────────────────────────────
     profile_args = get_profile_args(profile, config)
-    args = build_nmap_args(profile_args, subnet)
+    args = build_nmap_args(profile_args, subnet, config)
 
     # ── Run scan ──────────────────────────────────────────────────────────────
     scan_id = str(uuid.uuid4())
@@ -159,15 +159,22 @@ def validate_subnet(subnet: str, allowed: list[str]) -> bool:
     return False
 
 
-def build_nmap_args(profile_args: list[str], subnet: str) -> list[str]:
+def build_nmap_args(profile_args: list[str], subnet: str, config: dict | None = None) -> list[str]:
     """
     Construct the full nmap argument list.
 
     Output is always directed to stdout as XML (-oX -).
     """
-    nmap_bin = "/usr/bin/nmap"  # profile validation already confirmed this exists
+    nmap_bin = _get_nmap_bin(config)
     return [nmap_bin] + profile_args + ["-oX", "-", subnet]
 
+
+
+def _get_nmap_bin(config: dict | None) -> str:
+    """Read nmap binary path from config, falling back to default."""
+    if config and "scanner" in config:
+        return config["scanner"].get("nmap_binary", "/usr/bin/nmap")
+    return "/usr/bin/nmap"
 
 # ─── Private Helpers ──────────────────────────────────────────────────────────
 
@@ -182,7 +189,7 @@ def _write_scan_log(
 ) -> None:
     """Append one JSON line to data/scan_log.jsonl."""
     output_dir = pathlib.Path(config.get("scanner", {}).get("output_dir", "data/sessions/"))
-    log_path = output_dir.parent / "scan_log.jsonl"
+    log_path = pathlib.Path("data") / "scan_log.jsonl"
 
     entry = {
         "scan_id":    scan_id,
