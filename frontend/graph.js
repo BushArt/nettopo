@@ -1,109 +1,171 @@
 /**
- * graph.js — Phase 1 Static Graph Renderer
+ * graph.js — Phase 2 Live Force Simulation Renderer
  *
- * Fetches data/sessions/latest.json and renders one SVG circle per host
- * in a grid layout. No force simulation yet — that is Phase 2.
- *
- * Phase 2 changes are documented inline so the upgrade path is clear.
+ * Receives host_discovered events from WebSocket client, renders nodes
+ * in D3 force simulation dynamically as they arrive.
  */
 
 (function () {
   "use strict";
 
-  const DATA_URL = "../data/sessions/latest.json";
-  const NODE_RADIUS = 20;          // Phase 2: becomes 12 + (3 * open_port_count), max 40
-  const NODE_FILL   = "#4A90D9";   // Phase 2: becomes OS-family color mapping
-  const NODE_STROKE = "#ffffff";   // Phase 2: becomes risk-level color
-  const LABEL_OFFSET = NODE_RADIUS + 14;
+  // Configuration
+  const NODE_MIN_RADIUS  = 12;
+  const NODE_MAX_RADIUS  = 40;
+  const NODE_STROKE      = "#ffffff";
+  const LABEL_OFFSET     = 14;
 
-  // ── Fetch and render ───────────────────────────────────────────────────────
+  // OS family colour mapping
+  const OS_COLORS = {
+    "Linux":     "#58A6FF",
+    "Windows":   "#8B949E",
+    "Network":   "#D29922",
+    "Unknown":   "#A371F7",
+    null:        "#A371F7",
+    undefined:   "#A371F7"
+  };
 
-  fetch(DATA_URL)
-    .then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    })
-    .then(hosts => {
-      if (!Array.isArray(hosts) || hosts.length === 0) {
-        showError();
-        setStatus("No hosts found in latest scan.");
-        return;
-      }
-      renderGraph(hosts);
-      setStatus(`${hosts.length} host${hosts.length !== 1 ? "s" : ""} · scan complete`);
-      if (hosts[0] && hosts[0].scan_time) {
-        document.getElementById("scan-time").textContent =
-          "Scanned: " + hosts[0].scan_time.replace("T", " ").replace("Z", " UTC");
-      }
-    })
-    .catch(err => {
-      showError();
-      setStatus("Failed to load scan data — " + err.message);
-      console.error("NetTopo fetch error:", err);
-    });
+  // State
+  const nodes = [];
+  let simulation;
+  let svg;
+  let nodeSelection;
 
-  // ── Graph rendering ────────────────────────────────────────────────────────
+  // ── Initialization ───────────────────────────────────────────────────────────
 
-  function renderGraph(hosts) {
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeGraph();
+    setupEventListeners();
+  });
+
+  function initializeGraph() {
     const container = document.getElementById("graph-container");
     const W = container.clientWidth;
     const H = container.clientHeight;
 
-    const svg = d3.select("#graph")
+    svg = d3.select("#graph")
       .attr("viewBox", `0 0 ${W} ${H}`)
       .attr("preserveAspectRatio", "xMidYMid meet");
 
-    // Grid layout: ceil(sqrt(n)) columns, evenly spaced
-    // Phase 2: replaced entirely by D3 force simulation
-    const cols  = Math.ceil(Math.sqrt(hosts.length));
-    const cellW = W / (cols + 1);
-    const cellH = H / (Math.ceil(hosts.length / cols) + 1);
+    // D3 Force Simulation
+    simulation = d3.forceSimulation(nodes)
+      .force("charge", d3.forceManyBody().strength(-400))
+      .force("collide", d3.forceCollide().radius(d => getNodeRadius(d) + 20))
+      .force("center", d3.forceCenter(W / 2, H / 2))
+      .alphaDecay(0.02)
+      .on("tick", ticked);
 
-    const positions = hosts.map((_, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      return {
-        x: cellW * (col + 1),
-        y: cellH * (row + 1),
-      };
+    // Stop simulation until first host arrives
+    simulation.stop();
+
+    setStatus("Waiting for scan start");
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      const newW = container.clientWidth;
+      const newH = container.clientHeight;
+      svg.attr("viewBox", `0 0 ${newW} ${newH}`);
+      simulation.force("center", d3.forceCenter(newW / 2, newH / 2));
+      simulation.alpha(0.3).restart();
+    });
+  }
+
+  function setupEventListeners() {
+    NetTopoClient.on('connected', () => {
+      setStatus("Connected");
     });
 
-    // Bind data — one <g class="node"> per host
-    const nodes = svg.selectAll("g.node")
-      .data(hosts)
-      .enter()
+    NetTopoClient.on('disconnected', () => {
+      setStatus("Disconnected — reconnecting...");
+    });
+
+    NetTopoClient.on('scan_started', (event) => {
+      setStatus(`Scanning ${event.subnet}...`);
+      // Clear existing nodes on new scan
+      nodes.length = 0;
+      svg.selectAll("g.node").remove();
+      simulation.nodes(nodes);
+    });
+
+    NetTopoClient.on('host_discovered', (event) => {
+      addNode(event.data);
+    });
+
+    NetTopoClient.on('scan_progress', (event) => {
+      setStatus(`${event.hosts_found} hosts found · ${event.elapsed_s}s elapsed`);
+    });
+
+    NetTopoClient.on('scan_complete', (event) => {
+      setStatus(`Scan complete · ${event.total_hosts} hosts found · ${event.duration_s}s`);
+      document.getElementById("scan-time").textContent = 
+        "Completed: " + new Date().toISOString().replace("T", " ").replace("Z", " UTC");
+    });
+
+    NetTopoClient.on('scan_error', (event) => {
+      setStatus(`Error: ${event.message}`);
+    });
+  }
+
+  // ── Node Management ─────────────────────────────────────────────────────────
+
+  function addNode(host) {
+    nodes.push(host);
+
+    // Update simulation
+    simulation.nodes(nodes);
+
+    // D3 data join
+    nodeSelection = svg.selectAll("g.node")
+      .data(nodes, d => d.ip); // Join by IP (primary key)
+
+    // Enter new nodes
+    const entering = nodeSelection.enter()
       .append("g")
         .attr("class", "node")
-        .attr("transform", (_, i) => `translate(${positions[i].x}, ${positions[i].y})`)
-        .on("click", (event, d) => {
-          // Phase 2: opens right detail panel
-          console.log("Host detail:", d);
-        });
+        .attr("transform", d => `translate(${d.x}, ${d.y})`)
+        .on("click", (event, d) => console.log("Host detail:", d));
 
-    // Circle
-    nodes.append("circle")
-      .attr("r", NODE_RADIUS)
-      .attr("fill", NODE_FILL)    // Phase 2: osColor(d.os_family)
-      .attr("stroke", NODE_STROKE) // Phase 2: riskColor(d.risk_level)
+    // Add circle with pulse animation
+    entering.append("circle")
+      .attr("r", d => getNodeRadius(d))
+      .attr("fill", d => OS_COLORS[d.os_family])
+      .attr("stroke", NODE_STROKE)
       .attr("stroke-width", 2)
-      .append("title")             // native browser tooltip — Phase 2: replaced by floating div
+      .append("title")
         .text(d => tooltipText(d));
 
-    // IP label below node
-    nodes.append("text")
-      .attr("dy", LABEL_OFFSET)
-      .text(d => d.ip);           // Phase 2: short hostname + last octet fallback
+    // Add IP label
+    entering.append("text")
+      .attr("dy", d => getNodeRadius(d) + LABEL_OFFSET)
+      .attr("font-size", "11px")
+      .attr("font-family", "JetBrains Mono, Fira Code, monospace")
+      .attr("text-anchor", "middle")
+      .attr("fill", "#E6EDF3")
+      .text(d => d.ip);
 
-    // Open port count badge (useful even in Phase 1)
-    nodes.filter(d => d.ports && d.ports.length > 0)
+    // Add port count badge
+    entering.filter(d => d.ports && d.ports.length > 0)
       .append("text")
-        .attr("dy", -NODE_RADIUS - 4)
+        .attr("dy", d => -getNodeRadius(d) - 4)
         .attr("font-size", "9px")
         .attr("fill", "#8B949E")
+        .attr("text-anchor", "middle")
         .text(d => `${d.ports.length}p`);
+
+    // Restart simulation with full energy
+    simulation.alpha(1).restart();
+  }
+
+  function ticked() {
+    svg.selectAll("g.node")
+      .attr("transform", d => `translate(${d.x}, ${d.y})`);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  function getNodeRadius(host) {
+    const portCount = host.ports ? host.ports.length : 0;
+    return Math.min(NODE_MIN_RADIUS + (3 * portCount), NODE_MAX_RADIUS);
+  }
 
   function tooltipText(host) {
     const lines = [
