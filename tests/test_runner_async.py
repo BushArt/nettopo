@@ -42,12 +42,13 @@ async def test_async_running_against_allowed_subnet():
         }
     }
 
-    with patch('asyncio.create_subprocess_exec') as mock_exec:
+    with patch('asyncio.create_subprocess_exec') as mock_exec, \
+         patch('scanner.profiles.pathlib.Path.exists', return_value=True):
         mock_process = MagicMock()
-        lines = [b'<?xml version="1.0" encoding="UTF-8"?>\n', b'']
+        mock_lines = [b'<?xml version="1.0" encoding="UTF-8"?>\n', b'']
         async def mock_readline():
-            if lines:
-                return lines.pop(0)
+            if mock_lines:
+                return mock_lines.pop(0)
             return b''
         async def mock_wait():
             return 0
@@ -56,12 +57,12 @@ async def test_async_running_against_allowed_subnet():
         mock_process.returncode = 0
         mock_exec.return_value = mock_process
 
-        lines = []
+        received_lines = []
         async for line in run_scan_async("172.20.0.0/24", config=config):
-            lines.append(line)
+            received_lines.append(line)
 
-        assert len(lines) == 1
-        assert lines[0] == '<?xml version="1.0" encoding="UTF-8"?>'
+        assert len(received_lines) == 1
+        assert received_lines[0] == '<?xml version="1.0" encoding="UTF-8"?>'
 
 
 @pytest.mark.asyncio
@@ -81,7 +82,8 @@ async def test_async_multiple_lines_streamed():
         b''  # EOF
     ]
 
-    with patch('asyncio.create_subprocess_exec') as mock_exec:
+    with patch('asyncio.create_subprocess_exec') as mock_exec, \
+         patch('scanner.profiles.pathlib.Path.exists', return_value=True):
         mock_process = MagicMock()
         async def mock_readline():
             return test_lines.pop(0)
@@ -109,7 +111,8 @@ async def test_async_process_cleanup_on_exception():
         }
     }
 
-    with patch('asyncio.create_subprocess_exec') as mock_exec:
+    with patch('asyncio.create_subprocess_exec') as mock_exec, \
+         patch('scanner.profiles.pathlib.Path.exists', return_value=True):
         mock_process = MagicMock()
         async def mock_readline():
             await asyncio.sleep(0.01)

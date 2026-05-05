@@ -59,6 +59,45 @@ def parse_xml(xml_string: str) -> list[dict]:
     return hosts
 
 
+async def parse_stream(line_iter):
+    """
+    Streaming XML parser. Async generator that accepts lines of nmap XML
+    and yields complete HostDict objects as soon as each </host> closing tag is found.
+
+    Args:
+        line_iter: Async iterable yielding individual XML lines as strings
+
+    Yields:
+        Complete HostDict objects when host blocks are fully received
+    """
+    buffer = []
+    in_host = False
+
+    async for line in line_iter:
+        buffer.append(line)
+
+        if '<host>' in line or '<host ' in line:
+            in_host = True
+            buffer.clear()
+            buffer.append(line)
+
+        if '</host>' in line and in_host:
+            in_host = False
+            host_xml = "\n".join(buffer).strip()
+            try:
+                # Remove all namespaces and wrap with dummy root
+                stripped = re.sub(r' xmlns="[^"]+"', '', host_xml)
+                wrapped = f"<dummy>{stripped}</dummy>"
+                root = ET.fromstring(wrapped)
+                host_elem = root.find("host")
+                host = parse_host(host_elem)
+                if host:
+                    yield host
+            except Exception as e:
+                log.warning(f"Failed to parse streamed host block: {e} — skipping.")
+            buffer.clear()
+
+
 # ─── Per-Host Parsing ─────────────────────────────────────────────────────────
 
 def parse_host(host_elem: ET.Element) -> dict | None:

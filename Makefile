@@ -27,8 +27,11 @@ clean:
 ## Phase 2 (not yet implemented) ──────────────────────────────────────────────
 
 dev:
-	@echo "Phase 2: start ws_server.py + http.server with auto-reload"
-	@echo "Not yet implemented — see phase/2-streaming"
+	@echo ""
+	@echo "  WebSocket: ws://localhost:8765"
+	@echo "  HTTP:      http://localhost:8080/frontend/index.html"
+	@echo ""
+	python main.py
 
 lab:
 	docker compose -f docker-compose.lab.yml up -d

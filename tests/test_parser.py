@@ -14,7 +14,7 @@ import pathlib
 import re
 import pytest
 
-from scanner.parser import parse_xml, classify_os_family, ParseError
+from scanner.parser import parse_xml, parse_stream, classify_os_family, ParseError
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 
@@ -168,3 +168,30 @@ def test_no_os_detection_returns_none():
                 f"Host {host['ip']}: os_detail is None but os_family is '{host['os_family']}'"
             assert host["os_conf"] is None, \
                 f"Host {host['ip']}: os_detail is None but os_conf is '{host['os_conf']}'"
+
+
+@pytest.mark.asyncio
+async def test_parse_stream_yields_identical_hosts():
+    """Test parse_stream() yields exactly the same hosts as parse_xml()"""
+    xml = load("sample_nmap_quick.xml")
+    lines = xml.splitlines()
+
+    async def mock_line_iter():
+        for line in lines:
+            yield line
+
+    streamed_hosts = []
+    async for host in parse_stream(mock_line_iter()):
+        streamed_hosts.append(host)
+
+    static_hosts = parse_xml(xml)
+
+    # Verify same count
+    assert len(streamed_hosts) == len(static_hosts)
+
+    # Verify each host is identical
+    for streamed, static in zip(streamed_hosts, static_hosts):
+        # ignore scan_time which is generated at parse time
+        streamed.pop("scan_time")
+        static.pop("scan_time")
+        assert streamed == static
