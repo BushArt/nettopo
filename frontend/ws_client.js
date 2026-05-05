@@ -110,7 +110,10 @@ const NetTopoClient = (function() {
         disconnect,
         on,
         send,
-        startScan
+        startScan,
+        connected: function() {
+            return socket && socket.readyState === WebSocket.OPEN;
+        }
     };
 })();
 

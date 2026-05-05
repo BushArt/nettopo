@@ -71,14 +71,17 @@
 
   function setupEventListeners() {
     NetTopoClient.on('connected', () => {
+      console.log('[Graph] Connected to WebSocket server');
       setStatus("Connected");
     });
 
     NetTopoClient.on('disconnected', () => {
+      console.log('[Graph] Disconnected');
       setStatus("Disconnected — reconnecting...");
     });
 
     NetTopoClient.on('scan_started', (event) => {
+      console.log('[Graph] Scan started', event);
       setStatus(`Scanning ${event.subnet}...`);
       // Clear existing nodes on new scan
       nodes.length = 0;
@@ -87,6 +90,7 @@
     });
 
     NetTopoClient.on('host_discovered', (event) => {
+      console.log('[Graph] Host discovered', event.data.ip);
       addNode(event.data);
     });
 
@@ -95,12 +99,14 @@
     });
 
     NetTopoClient.on('scan_complete', (event) => {
+      console.log('[Graph] Scan complete', event);
       setStatus(`Scan complete · ${event.total_hosts} hosts found · ${event.duration_s}s`);
       document.getElementById("scan-time").textContent = 
         "Completed: " + new Date().toISOString().replace("T", " ").replace("Z", " UTC");
     });
 
     NetTopoClient.on('scan_error', (event) => {
+      console.error('[Graph] Scan error', event);
       setStatus(`Error: ${event.message}`);
     });
   }
