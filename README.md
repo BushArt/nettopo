@@ -1,6 +1,6 @@
 # NetTopo — Live Network Topology Visualizer
 
-**Current status: Phase 1 — Foundation** (Scanner + Parser + Static Rendering)
+**Current status: Phase 2 — Streaming** (Live real-time network topology)
 
 ---
 
@@ -14,14 +14,14 @@ Authorized environments: your own lab, TryHackMe rooms (while connected to their
 
 ---
 
-## Quickstart (Phase 1)
+## Quickstart (Phase 2)
 
 ### 1. Clone and set up
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/nettopo.git
 cd nettopo
-git checkout phase/1-foundation
+git checkout phase/2-streaming
 
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -50,8 +50,8 @@ bash tests/mock_network/generate_fixtures.sh
 ### 5. Scan and view
 
 ```bash
-make scan       # runs nmap, writes data/sessions/latest.json
-make serve      # serves the frontend on http://localhost:8080
+make dev        # runs both WebSocket and HTTP server on http://localhost:8080
+make scan       # (legacy static mode)
 # open http://localhost:8080 in your browser
 ```
 
@@ -98,8 +98,8 @@ nettopo/
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 1 | Scanner + Parser + Static Rendering | 🔨 In Progress |
-| 2 | WebSocket Server + Live Graph Updates | ⏳ Planned |
+| 1 | Scanner + Parser + Static Rendering | ✅ Complete |
+| 2 | WebSocket Server + Live Graph Updates | ✅ Complete |
 | 3 | CVE Enrichment + Risk Scoring | ⏳ Planned |
 | 4 | Export + Demo Mode + Polish | ⏳ Planned |
 | 5 | Bloodhound + PCAP + Extensions | ⏳ Optional |
