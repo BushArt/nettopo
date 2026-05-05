@@ -55,7 +55,7 @@ def main() -> None:
     console.print(Panel.fit(
         f"[bold cyan]NetTopo[/bold cyan] — Phase 1 Static Scanner\n"
         f"Target: [green]{args.subnet}[/green]  ·  Profile: [yellow]{args.profile}[/yellow]",
-        title="MOLi · NCNU",
+        title="NetTopo",
     ))
 
     # ── Scan ──────────────────────────────────────────────────────────────────
