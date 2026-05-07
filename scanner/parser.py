@@ -27,6 +27,42 @@ class ParseError(ValueError):
     pass
 
 
+def filter_phantom_hosts(hosts: list[dict]) -> list[dict]:
+    """
+    Filter out Podman bridge network phantom hosts.
+
+    A host is considered phantom if all three are true:
+    - No MAC address (not L2 adjacent)
+    - No open ports
+    - No hostname
+
+    Real hosts on a local network will always have at least one of these.
+    """
+    filtered = []
+    phantom_count = 0
+
+    for host in hosts:
+        # Allow the 3 real known lab IPs through unfiltered
+        if host["ip"] in ("172.20.0.10", "172.20.0.11", "172.20.0.12"):
+            filtered.append(host)
+            continue
+
+        # All other 172.20.0.x addresses are phantom hosts
+        if (host["ip"].startswith("172.20.0.")
+                and host["mac"] is None
+                and len(host["ports"]) == 0
+                and host["hostname"] is None):
+            phantom_count += 1
+            continue
+
+        filtered.append(host)
+
+    if phantom_count > 0:
+        log.warning(f"Filtered {phantom_count} phantom hosts (no MAC, no ports, no hostname)")
+
+    return filtered
+
+
 # ─── Root Entry Point ─────────────────────────────────────────────────────────
 
 def parse_xml(xml_string: str) -> list[dict]:
@@ -56,7 +92,7 @@ def parse_xml(xml_string: str) -> list[dict]:
         except Exception as e:
             log.warning(f"Failed to parse host element: {e} — skipping.")
 
-    return hosts
+    return filter_phantom_hosts(hosts)
 
 
 async def parse_stream(line_iter):
@@ -92,7 +128,9 @@ async def parse_stream(line_iter):
                 host_elem = root.find("host")
                 host = parse_host(host_elem)
                 if host:
-                    yield host
+                    filtered = filter_phantom_hosts([host])
+                    if filtered:
+                        yield filtered[0]
             except Exception as e:
                 log.warning(f"Failed to parse streamed host block: {e} — skipping.")
             buffer.clear()

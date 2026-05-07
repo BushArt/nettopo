@@ -28,7 +28,11 @@
   const nodes = [];
   let simulation;
   let svg;
+  let zoomLayer;
   let nodeSelection;
+  let W;
+  let H;
+  let zoom;
 
   // ── Initialization ───────────────────────────────────────────────────────────
 
@@ -38,20 +42,55 @@
   });
 
   function initializeGraph() {
-    const container = document.getElementById("graph-container");
-    const W = container.clientWidth;
-    const H = container.clientHeight;
-
     svg = d3.select("#graph")
-      .attr("viewBox", `0 0 ${W} ${H}`)
-      .attr("preserveAspectRatio", "xMidYMid meet");
+      .attr("width", "100%")
+      .attr("height", "100%");
+
+    const rect = svg.node().getBoundingClientRect();
+    W = rect.width;
+    H = rect.height;
+
+    // Zoom pan group
+    zoomLayer = svg.append("g").attr("id", "zoom-layer");
+
+    // Zoom behaviour
+    zoom = d3.zoom()
+      .scaleExtent([0.3, 4])
+      .on("zoom", (event) => {
+        zoomLayer.attr("transform", event.transform);
+      });
+
+    svg.call(zoom);
+
+    // Double click reset view
+    svg.on("dblclick.zoom", () => {
+      // Reset all nodes to centre with small jitter
+      nodes.forEach(host => {
+        host.x = (W / 2) + (Math.random() - 0.5) * 60;
+        host.y = (H / 2) + (Math.random() - 0.5) * 60;
+      });
+
+      // Reset zoom transform
+      svg.transition().duration(400).call(
+        zoom.transform,
+        d3.zoomIdentity
+      );
+
+      // Restart simulation
+      simulation.alpha(1).restart();
+    });
 
     // D3 Force Simulation
     simulation = d3.forceSimulation(nodes)
-      .force("charge", d3.forceManyBody().strength(-400))
-      .force("collide", d3.forceCollide().radius(d => getNodeRadius(d) + 20))
-      .force("center", d3.forceCenter(W / 2, H / 2))
+      .force("charge", d3.forceManyBody().strength(d => {
+        const base = Math.max(-60, -1200 / Math.max(1, nodes.length));
+        return base * (0.88 + Math.random() * 0.24);
+      }))
+      .force("collide", d3.forceCollide().radius(d => getNodeRadius(d) + Math.max(1, 20 - nodes.length)))
+      .force("x", d3.forceX(W / 2).strength(0.05))
+      .force("y", d3.forceY(H / 2).strength(0.05))
       .alphaDecay(0.02)
+      .velocityDecay(0.7)
       .on("tick", ticked);
 
     // Stop simulation until first host arrives
@@ -61,11 +100,18 @@
 
     // Handle window resize
     window.addEventListener('resize', () => {
-      const newW = container.clientWidth;
-      const newH = container.clientHeight;
-      svg.attr("viewBox", `0 0 ${newW} ${newH}`);
-      simulation.force("center", d3.forceCenter(newW / 2, newH / 2));
-      simulation.alpha(0.3).restart();
+      const rect = svg.node().getBoundingClientRect();
+      const newW = rect.width;
+      const newH = rect.height;
+
+      // Only restart simulation if resize is significant
+      if (Math.abs(newW - W) > 50 || Math.abs(newH - H) > 50) {
+        W = newW;
+        H = newH;
+        simulation.force("x", d3.forceX(W / 2).strength(0.05));
+        simulation.force("y", d3.forceY(H / 2).strength(0.05));
+        simulation.alpha(0.1).restart();
+      }
     });
   }
 
@@ -85,7 +131,7 @@
       setStatus(`Scanning ${event.subnet}...`);
       // Clear existing nodes on new scan
       nodes.length = 0;
-      svg.selectAll("g.node").remove();
+      zoomLayer.selectAll("g.node").remove();
       simulation.nodes(nodes);
     });
 
@@ -103,6 +149,7 @@
       setStatus(`Scan complete · ${event.total_hosts} hosts found · ${event.duration_s}s`);
       document.getElementById("scan-time").textContent = 
         "Completed: " + new Date().toISOString().replace("T", " ").replace("Z", " UTC");
+
     });
 
     NetTopoClient.on('scan_error', (event) => {
@@ -114,13 +161,20 @@
   // ── Node Management ─────────────────────────────────────────────────────────
 
   function addNode(host) {
+    // Initial position centre +-30px jitter, preserve if already set
+    if (host.x === undefined) {
+      host.x = (W / 2) + (Math.random() - 0.5) * 60;
+      host.y = (H / 2) + (Math.random() - 0.5) * 60;
+    }
+
     nodes.push(host);
 
     // Update simulation
     simulation.nodes(nodes);
+    simulation.force("collide", d3.forceCollide().radius(d => getNodeRadius(d) + Math.max(1, 20 - nodes.length)));
 
     // D3 data join
-    nodeSelection = svg.selectAll("g.node")
+    nodeSelection = zoomLayer.selectAll("g.node")
       .data(nodes, d => d.ip); // Join by IP (primary key)
 
     // Enter new nodes
@@ -128,16 +182,23 @@
       .append("g")
         .attr("class", "node")
         .attr("transform", d => `translate(${d.x}, ${d.y})`)
+        .style("cursor", "default")
         .on("click", (event, d) => console.log("Host detail:", d));
 
     // Add circle with pulse animation
-    entering.append("circle")
-      .attr("r", d => getNodeRadius(d))
+    const circle = entering.append("circle")
+      .attr("r", 0)
       .attr("fill", d => OS_COLORS[d.os_family])
       .attr("stroke", NODE_STROKE)
-      .attr("stroke-width", 2)
-      .append("title")
-        .text(d => tooltipText(d));
+      .attr("stroke-width", 2);
+
+    circle.append("title")
+      .text(d => tooltipText(d));
+
+    circle.transition()
+      .duration(600)
+      .ease(d3.easeElasticOut)
+      .attr("r", d => getNodeRadius(d));
 
     // Add IP label
     entering.append("text")
@@ -162,7 +223,7 @@
   }
 
   function ticked() {
-    svg.selectAll("g.node")
+    zoomLayer.selectAll("g.node")
       .attr("transform", d => `translate(${d.x}, ${d.y})`);
   }
 

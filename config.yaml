@@ -4,7 +4,7 @@
 # All keys must be present. Leave optional keys as empty strings.
 
 scanner:
-  default_subnet: "172.20.0.0/24"   # Default target for `make scan`
+  default_subnet: "172.20.0.10 172.20.0.11 172.20.0.12"   # Default target for `make scan`
   default_profile: "quick"           # Default scan profile name
   nmap_binary: "/usr/bin/nmap"       # Full path to nmap binary
   output_dir: "data/sessions/"       # Directory for JSON output files
